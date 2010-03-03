@@ -1,0 +1,18 @@
+include AUTHORS
+include CHANGELOG
+include INSTALL
+include MANIFEST
+include NEWS
+include README.rst
+include THANKS
+include TODO
+include FAQ
+
+include setup.py
+
+recursive-include doc *.html
+recursive-include example *.py
+
+recursive-include drosophiline *.py
+
+recursive-include bin *
