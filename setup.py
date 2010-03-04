@@ -20,10 +20,12 @@ python setup.py sdist upload --show-response
 from distutils.core import setup
 from distutils.core import Extension
 
-myversion_tuple = (0, 0, 1)
-myversion = '.'.join(str(x) for x in myversion_tuple)
+from drosophiline import drosophiline_version
+
 
 scripts = [
+        'bin/dline-create-transition-params',
+        'bin/dline-create-emission-params',
         'bin/dline-compute-likelihoods',
         'bin/dline-call-polymorphisms',
         'bin/dline-user-friendly']
@@ -43,7 +45,7 @@ long_description = open('README.rst').read()
 
 setup(
         name = 'drosophiline',
-        version = myversion,
+        version = drosophiline_version,
         author = 'Alex Griffing',
         author_email = 'argriffi@ncsu.edu',
         maintainer = 'Alex Griffing',

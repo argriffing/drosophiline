@@ -1,7 +1,6 @@
 include AUTHORS
 include CHANGELOG
 include INSTALL
-include MANIFEST
 include NEWS
 include README.rst
 include THANKS

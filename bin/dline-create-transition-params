@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+"""Create two binary files defining non-emission properties of the HMM.
+One of the files gives the initial distribution.
+The other file gives the transition matrix.
+"""
+
+import argparse
+import numpy as np
+
+from drosophiline import matrixtype
+
+def create_uniform_distribution(nstates):
+    """Create a uniform distribution.
+    @param nstates: the number of states
+    @return: a finite distribution
+    """
+    return np.ones(nstates) * (1.0 / nstates)
+
+def create_transition_matrix(nstates, region_size):
+    """Create a transition matrix.
+    @param nstates: the number of states in the transition matrix
+    @param region_size: the expected segment length in the corresponding HMM
+    @return: a transition matrix
+    """
+    shape = (nstates, nstates)
+    T = np.zeros(shape)
+    p_change = 1.0 / region_size
+    off_diag_element = p_change / (nstates - 1)
+    diag_element = 1 - p_change
+    for i in range(nstates):
+        for j in range(nstates):
+            T[i, j] = diag_element if i == j else off_diag_element
+    if not matrixtype.is_right_stochastic_matrix(T):
+        raise RuntimeError('internal matrix creation error')
+    return T
+
+def whole_number_ge_2(x):
+    """This function is an argparse type.
+    @param x: argument value passed on the command line
+    @return: a whole number greater than or equal to two
+    """
+    k = int(x)
+    if k < 2:
+        raise TypeError
+    return k
+
+def main(args):
+    """Run the script.
+    @param args: command line arguments
+    """
+    v = create_uniform_distribution(args.nstates)
+    T = create_transition_matrix(args.nstates, args.region_size)
+    v.tofile(args.fdistribution)
+    T.tofile(args.ftransitions)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--nstates', type=whole_number_ge_2, default=4,
+            help='number of hidden states')
+    parser.add_argument('--region_size', type=whole_number_ge_2, default=1000,
+            help='expected length of each segment')
+    parser.add_argument('--fdistribution', default='distribution.bin',
+            help='this binary file will specify the initial distribution')
+    parser.add_argument('--ftransitions', default='transitions.bin',
+            help='this binary file will specify the transition matrix')
+    main(parser.parse_args())

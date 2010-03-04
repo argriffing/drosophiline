@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+"""Create a text file defining the emission distributions of the HMM states.
+"""
+
+import time
+
+import argparse
+
+g_default_model_rows = (
+        ('misalignment_effect', '0.5', 'misalignment branch length'),
+        ('x', '0.1', 'reference branch length'),
+        ('y', '0.01', 'line branch length'),
+        ('z', '0.0001', 'mutant branch length'),
+        ('low', '2', 'low random coverage per base'),
+        ('med', '20', 'medium random coverage per base'),
+        ('high', '1000', 'high random coverage per base'),
+        ('seqerr', '0.1', 'sequencing error'),
+        ('nomcoverage', '20', 'nominal coverage per position'),
+        ('kmulticoverages', '4', 'allowed multiples of nominal coverage'))
+
+def main(args):
+    """Run the script.
+    @param args: command line arguments
+    """
+    with open(args.fmodel, 'w') as fout:
+        t = time.localtime()
+        s = time.strftime("%a, %d %b %Y %H:%M:%S +0000", t)
+        print >> fout, '#', 'model created'
+        print >> fout, '#', s
+        print >> fout
+        for name, value, comment in g_default_model_rows:
+            print >> fout, '#', comment
+            print >> fout, name, value
+            print >> fout
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fmodel', default='model.txt',
+            help='this text file will specify the emission distributions')
+    main(parser.parse_args())
