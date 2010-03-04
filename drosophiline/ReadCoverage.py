@@ -16,7 +16,7 @@ import numpy as np
 import scipy.stats
 import scipy.maxentropy
 
-import Util
+import xgstats
 
 
 def get_homozygous_distributions(randomization_rate):
@@ -89,7 +89,7 @@ class Mixture:
         """
         @return: an observation sampled from the distribution
         """
-        state = self.states[Util.random_weighted_int(self.distribution)]
+        state = self.states[xgstats.random_weighted_int(self.distribution)]
         return state.sample_observation()
 
     def get_likelihood(self, observation):
@@ -158,8 +158,8 @@ class SinglePatternState:
             raise ValueError('expected the observation to be a vector of four integers')
         n = sum(observation)
         accum = 0
-        accum += Util.poisson_log_pmf(n, self.expected_coverage)
-        accum += Util.multinomial_log_pmf(self.distribution, observation)
+        accum += xgstats.poisson_log_pmf(n, self.expected_coverage)
+        accum += xgstats.multinomial_log_pmf(self.distribution, observation)
         return accum
 
     def get_likelihood(self, observation):
@@ -169,30 +169,45 @@ class SinglePatternState:
 class FlatState:
     """
     This is supposed to be a somewhat flat distribution.
-    Each of the four counts is sampled independently according to a geometric distribution.
+    Each of the counts is sampled independently
+    according to a geometric distribution.
     The distribution of the sum of counts is negative binomial.
     """
 
-    def __init__(self, expected_coverage):
+    def __init__(self, nstates, expected_coverage):
         """
-        @param expected_coverage: the read coverage at a position is has this expectation
+        Each state has a geometrically distributed count.
+        @param nstates: the number of different possible states
+        @param expected_coverage: expected read coverage at a position
         """
+        # store the arguments
+        self.nstates = nstates
         self.expected_coverage = expected_coverage
+        # precalculate part of the log likelihood
+        self.mu = self.expected_coverage / float(self.nstates)
+        self.pr = 1/(self.mu+1)
+        if self.pr != 0.0:
+            self.log_pr = math.log(self.pr)
+        if self.pr != 1.0:
+            self.log_not_pr = math.log(1.0 - self.pr)
 
     def sample_observation(self):
         """
-        @return: a sample of counts in each A, C, G, T state
+        @return: a sample of counts in each state
         """
-        mu = self.expected_coverage / 4.0
-        pr = 1/(mu+1)
-        return tuple(scipy.stats.geom.rvs(pr, loc=-1, size=4))
+        return tuple(scipy.stats.geom.rvs(self.pr, loc=-1, size=self.nstates))
 
     def get_log_likelihood(self, observation):
-        if len(observation) != 4:
-            raise ValueError('expected the observation to be a vector of four integers')
-        mu = self.expected_coverage / 4.0
-        pr = 1/(mu+1)
-        return sum(Util.geometric_log_pmf(obs, pr) for obs in observation)
+        if len(observation) != self.nstates:
+            raise ValueError('expected a vector of %d integers' % self.nstates)
+        if self.pr == 0.0:
+            return float('-inf')
+        if self.pr == 1.0:
+            if any(observation):
+                return float('-inf')
+            else:
+                return 0
+        return sum(observation) * self.log_not_pr + self.nstates * self.log_pr
 
     def get_likelihood(self, observation):
         return math.exp(self.get_log_likelihood(observation))
@@ -213,7 +228,7 @@ class Heterozygous(UniformMixture):
 class Overcovered(UniformMixture):
     def __init__(self, randomization_rate, expected_coverage):
         distributions = get_homozygous_distributions(randomization_rate) + get_heterozygous_distributions(randomization_rate)
-        states = [FlatState(expected_coverage)] + [SinglePatternState(d, expected_coverage) for d in distributions]
+        states = [FlatState(4, expected_coverage)] + [SinglePatternState(d, expected_coverage) for d in distributions]
         UniformMixture.__init__(self, states)
 
 
@@ -273,7 +288,7 @@ class TestReadCoverage(unittest.TestCase):
             self.assertTrue(np.allclose(p_observed, p_expected), (n, p_observed, p_expected))
 
     def test_flat_sample(self):
-        state = FlatState(10)
+        state = FlatState(4, 10)
         observation = state.sample_observation()
         self.assertEqual(len(observation), 4)
         for x in observation:
@@ -281,7 +296,7 @@ class TestReadCoverage(unittest.TestCase):
 
     def test_flat_likelihood(self):
         expected_coverage = 5
-        state = FlatState(expected_coverage)
+        state = FlatState(4, expected_coverage)
         for n in range(10):
             p_observed = sum(state.get_likelihood(observation) for observation in _gen_observations(n))
             pr = 1.0 / (1.0 + expected_coverage / 4.0)
@@ -352,7 +367,7 @@ class TestReadCoverage(unittest.TestCase):
         Test a mixture with a degenerately single-minded component.
         """
         # define a hidden state that is a mixture
-        components = (FlatState(10), SinglePatternState((.9, .1, 0, 0), 10))
+        components = (FlatState(4, 10), SinglePatternState((.9, .1, 0, 0), 10))
         model = UniformMixture(components)
         # define an observation that is completely incompatible with the second component
         obs = (0, 0, 10, 2)
@@ -377,7 +392,7 @@ class TestReadCoverage(unittest.TestCase):
         Create a weighted mixture that is the same as a uniform mixture.
         The likelihoods should be the same because it is the same model.
         """
-        states = [FlatState(1), FlatState(10)]
+        states = [FlatState(4, 1), FlatState(4, 10)]
         model_a = Mixture(states, [0.5, 0.5])
         model_b = UniformMixture(states)
         observation = (0,1,2,3)
@@ -393,7 +408,7 @@ class TestReadCoverage(unittest.TestCase):
         Create mixture models that differ only in their mixing proportions.
         The likelihoods should differ in predictable ways.
         """
-        states = [FlatState(1), FlatState(10)]
+        states = [FlatState(4, 1), FlatState(4, 10)]
         mixture_a = Mixture(states, [0.5, 0.5])
         mixture_b = Mixture(states, [0.4, 0.6])
         observation = (1,2,3,4)

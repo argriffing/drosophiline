@@ -16,7 +16,7 @@ after this filtering has been done the reads can no longer be reconstructed.
 
 import unittest
 
-import JC69
+import jc69
 import ambignt
 import ReadCoverageRef
 
@@ -152,8 +152,8 @@ def get_zygosity_distribution(ref_length, child_length):
     @param child_length: length of each child taxon branch
     @return: the distribution (RR, RA, AA, AB)
     """
-    p_ref_change = JC69.distance_to_probability(ref_length)
-    p_child_change = JC69.distance_to_probability(child_length)
+    p_ref_change = jc69.distance_to_probability(ref_length)
+    p_child_change = jc69.distance_to_probability(child_length)
     # For now sum over all possibilities of non-reference nodes.
     # This could be done more efficiently using Felsenstein pruning,
     # but I am ignoring this for now.
