@@ -7,17 +7,8 @@ import time
 
 import argparse
 
-g_default_model_rows = (
-        ('misalignment_effect', '0.5', 'misalignment branch length'),
-        ('x', '0.1', 'reference branch length'),
-        ('y', '0.01', 'line branch length'),
-        ('z', '0.0001', 'mutant branch length'),
-        ('low', '2', 'low random coverage per base'),
-        ('med', '20', 'medium random coverage per base'),
-        ('high', '1000', 'high random coverage per base'),
-        ('seqerr', '0.1', 'sequencing error'),
-        ('nomcoverage', '20', 'nominal coverage per position'),
-        ('kmulticoverages', '4', 'allowed multiples of nominal coverage'))
+from drosophiline import ModelA
+
 
 def main(args):
     """Run the script.
@@ -29,10 +20,7 @@ def main(args):
         print >> fout, '#', 'model created'
         print >> fout, '#', s
         print >> fout
-        for name, value, comment in g_default_model_rows:
-            print >> fout, '#', comment
-            print >> fout, name, value
-            print >> fout
+        print >> fout, ModelA.get_default_string()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

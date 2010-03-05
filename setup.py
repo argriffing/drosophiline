@@ -28,6 +28,7 @@ scripts = [
         'bin/dline-create-emission-params',
         'bin/dline-compute-likelihoods',
         'bin/dline-call-polymorphisms',
+        'bin/dline-sample-observations',
         'bin/dline-user-friendly']
 
 classifiers = [

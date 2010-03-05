@@ -139,7 +139,7 @@ class HMMGarbage(ReadCoverage.UniformMixture):
     This region has states with ill-defined zygosity.
     """
     def __init__(self, low, med, high):
-        states = [ReadCoverageRef.FlatState(4, x) for x in (low, med, high)]
+        states = [ReadCoverage.FlatState(4, x) for x in (low, med, high)]
         ReadCoverage.UniformMixture.__init__(self, states)
 
 

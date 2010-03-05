@@ -1,1 +1,35 @@
 #!/usr/bin/env python
+
+"""Compute a binary file of likelihoods.
+Likelihoods are computed for each hidden state for each position.
+The input is a text file that specifies the emission distributions,
+and a text file with an observation on each line.
+Each observation should be four numbers: a reference base count
+and three non-reference base counts.
+"""
+
+import struct
+
+import argparse
+
+from drosophiline import ReadCoverageRef
+from drosophiline import dgrp
+
+
+def main(args):
+    """Run the script.
+    @param args: command line arguments
+    """
+    with open(args.fmodel) as fin:
+        model = dgrp.Model()
+        model.from_lines(fin)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fmodel', default='model.txt',
+            help='this text file specifies the emission distributions')
+    parser.add_argument('--fobservations', default='observations.txt',
+            help='each line is an observation')
+    parser.add_argument('--flikelihoods', default='likelihoods.bin',
+            help='this will be a binary file of likelihoods')
+    main(parser.parse_args())

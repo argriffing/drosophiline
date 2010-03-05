@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+
+"""Create a text file with an observation on each row.
+"""
+
+import numpy as np
+import argparse
+
+from drosophiline import ReadCoverage
+from drosophiline import ModelA
+from drosophiline import xgstats
+
+def sample_hmm(states, distn, trans, nsamples):
+    k = None
+    for i in range(nsamples):
+        if k is None:
+            k = xgstats.random_weighted_int(distn)
+        else:
+            k = xgstats.random_weighted_int(trans[k])
+        yield states[k].sample_observation()
+
+
+def main(args):
+    """Run the script.
+    @param args: command line arguments
+    """
+    # read the emission distribution parameters
+    model = ModelA.Model()
+    with open(args.fmodel) as fin:
+        model.from_lines(fin)
+    # read the initial distribution and transition matrices
+    distn = np.fromfile(args.fdistribution, dtype=float)
+    nstates = len(distn)
+    shape = (nstates, nstates)
+    trans = np.fromfile(args.ftransitions, dtype=float).reshape(shape)
+    # sample the observations
+    with open(args.fobservations, 'w') as fout:
+        gen = sample_hmm(model.states, distn, trans, args.nsamples)
+        obs_lines = ['\t'.join(str(x) for x in obs) for obs in gen]
+        fout.write('\n'.join(obs_lines))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--nsamples', type=int, default=100,
+        help='sample this many observations')
+    parser.add_argument('--fmodel', default='model.txt',
+            help='this text file specifies the emission distributions')
+    parser.add_argument('--fdistribution', default='distribution.bin',
+            help='initial distribution binary file')
+    parser.add_argument('--ftransitions', default='transitions.bin',
+            help='transition matrix binary file')
+    parser.add_argument('--fobservations', default='observations.txt',
+            help='sampled observations go in this text file')
+    main(parser.parse_args())

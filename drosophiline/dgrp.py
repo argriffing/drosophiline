@@ -207,18 +207,27 @@ def get_foo(p_ancient, p_recent, AA_ancient, AA_recent, x2, x3, x4, r):
 
 class Model:
     def __init__(self):
-        self.expected_param_names = ['x', 'y', 'z', 'low', 'med', 'high',
+        self.expected_param_names = ['w', 'x', 'y', 'z', 'low', 'med', 'high',
                 'seqerr', 'nomcoverage', 'kmulticoverages']
     def from_lines(self, lines):
         # extract the parameters
         rows = [line.split() for line in lines]
+        rows = [row for row in rows if row]
+        rows = [row for row in rows if not row[0].startswith('#')]
         if any(len(r)!=2 for r in rows):
             raise Exception('parameter syntax error')
         param_to_value = dict(rows)
         # check the parameters
-        if set(self.expected_param_names) != set(param_to_value.keys()):
-            raise Exception('invalid or missing parameter')
+        expected = set(self.expected_param_names)
+        observed = set(param_to_value)
+        invalid_params = observed - expected
+        missing_params = expected - observed
+        if invalid_params:
+            raise Exception('invalid params: ' + str(list(invalid_params)))
+        if missing_params:
+            raise Exception('missing params: ' + str(list(missing_params)))
         # get the typed parameters
+        self.w = float(param_to_value['w'])
         self.x = float(param_to_value['x'])
         self.y = float(param_to_value['y'])
         self.z = float(param_to_value['z'])
@@ -251,8 +260,8 @@ class Model:
     def get_garbage_state(self):
         return ReadCoverageRef.HMMGarbage(
                 self.low, self.med, self.high)
-    def get_misaligned_state(self, w):
-        return ReadCoverageRef.HMMRecent(self.x + w, self.y, self.z,
+    def get_misaligned_state(self):
+        return ReadCoverageRef.HMMRecent(self.w + self.x, self.y, self.z,
                 self.seqerr, self.nomcoverage, self.kmulticoverages)
 
 class TestDGRP(unittest.TestCase):
