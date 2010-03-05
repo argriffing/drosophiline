@@ -1,1 +1,51 @@
 #!/usr/bin/env python
+
+"""Compute a binary file of posterior polymorphism probabilities.
+"""
+
+import itertools
+import struct
+
+import argparse
+
+from drosophiline import ModelA
+
+
+def process(model, fin_obs, fin_post, fout_calls):
+    """
+    @param model: emission distribution info
+    @param fin_obs: observations as a text file for reading
+    @param fin_post: posterior distributions as a binary file for reading
+    @param fout_calls: polymorphism calls as a binary file for writing
+    """
+    for obs, post in itertools.izip(
+            ModelA.gen_observations(fin_obs),
+            ModelA.gen_posterior(fin_post)):
+        polycall = model.call_polymorphism(obs, post)
+        fout_calls.write(struct.pack('d', polycall))
+
+def main(args):
+    """Run the script.
+    @param args: command line arguments
+    """
+    # read the emission distribution parameters
+    model = ModelA.Model()
+    with open(args.fmodel) as fin:
+        model.from_lines(fin)
+    # process the likelihoods
+    with open(args.fobservations) as fin_obs:
+        with open(args.fposterior) as fin_post:
+            with open(args.fcalls, 'wb') as fout_calls:
+                process(model, fin_obs, fin_post, fout_calls)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fmodel', default='model.txt',
+            help='this text file specifies the emission distributions')
+    parser.add_argument('--fobservations', default='observations.txt',
+            help='each line is an observation')
+    parser.add_argument('--fposterior', default='posterior.bin',
+            help='a binary file of position specific posterior distributions')
+    parser.add_argument('--fcalls', default='calls.bin',
+            help='this will be a binary file of polymorphism probabilities')
+    main(parser.parse_args())

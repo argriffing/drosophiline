@@ -21,19 +21,13 @@ def main(args):
     @param args: command line arguments
     """
     # read the emission distribution parameters
+    model = ModelA.Model()
     with open(args.fmodel) as fin:
-        model = ModelA.Model()
         model.from_lines(fin)
     # process the observations
     with open(args.flikelihoods, 'wb') as fout:
         with open(args.fobservations) as fin:
-            for line in fin:
-                row = line.split()
-                if not row:
-                    continue
-                if len(row) != 4:
-                    raise ValueError('expected four counts per obs row')
-                obs = tuple(int(x) for x in row)
+            for obs in ModelA.gen_observations(fin):
                 for state in model.states:
                     likelihood = state.get_likelihood(obs)
                     if math.isnan(likelihood):

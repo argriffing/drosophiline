@@ -1,12 +1,77 @@
 
 import unittest
 import math
+import struct
 from StringIO import StringIO
 
 from scipy.maxentropy import logsumexp
 
 import ReadCoverageRef
 import paramhelper
+
+def gen_floats(fin):
+    nbytes_per_float = 8
+    nbytes_expected = nbytes_per_float
+    fmt = 'd'
+    while True:
+        chunk = fin.read(nbytes_expected)
+        nbytes_observed = len(chunk)
+        if not nbytes_observed:
+            break
+        if nbytes_observed < nbytes_expected:
+            msg_a = 'expected file size to be a multiple of '
+            msg_b = str(nbytes_expected)
+            raise RuntimeError(msg_a + msg_b)
+        yield struct.unpack(fmt, chunk)[0]
+
+def gen_float_tuples(fin, nfloats):
+    nbytes_per_float = 8
+    nbytes_expected = nfloats*nbytes_per_float
+    fmt = 'd' * nfloats
+    while True:
+        chunk = fin.read(nbytes_expected)
+        nbytes_observed = len(chunk)
+        if not nbytes_observed:
+            break
+        if nbytes_observed < nbytes_expected:
+            msg_a = 'expected file size to be a multiple of '
+            msg_b = str(nbytes_expected)
+            raise RuntimeError(msg_a + msg_b)
+        yield struct.unpack(fmt, chunk)
+
+def gen_observations(fin):
+    """
+    @param fin: text file open for reading
+    """
+    nstates = 4
+    for line in fin:
+        row = line.split()
+        if not row:
+            continue
+        if len(row) != nstates:
+            raise RuntimeError('expected four counts per obs row')
+        yield tuple(int(x) for x in row)
+
+def gen_likelihoods(fin):
+    """
+    @param fin: binary file open for reading
+    """
+    nstates = 4
+    return gen_float_tuples(fin, nstates)
+
+def gen_posterior(fin):
+    """
+    @param fin: binary file open for reading
+    """
+    nstates = 4
+    return gen_float_tuples(fin, nstates)
+
+def gen_calls(fin):
+    """
+    @param fin: binary file open for reading
+    """
+    return gen_floats(fin)
+
 
 g_param_rows = [
         ('w', '0.5', float,
@@ -91,13 +156,16 @@ class Model:
     def get_likelihoods(obs):
         return [s.get_likelihood(obs) for s in self.states]
 
-    def call_polymorphism(self, obs):
+    def call_polymorphism(self, obs, post):
         """Get the polymorphism probability.
         This is the posterior probability that the strain is homozygous
         for the non-reference base with the highest count at this position.
         @param obs: one ref base count and three non-ref base counts
+        @param post: the posterior hidden state probabilities
         @return: the polymorphism probability
         """
+        # unpack the posterior state distribution
+        p_recent, p_ancient, p_garbage, p_misaligned = post
         # get the prior probability of polymorphism conditional on state
         p_recent_AA = self.states[0].get_posterior_distribution(obs)[2]
         p_ancient_AA = self.states[1].get_posterior_distribution(obs)[2]
