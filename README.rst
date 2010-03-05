@@ -57,8 +57,20 @@ Uninstall drosophiline using::
 Usage
 =====
 
-For now, the project will consist only of
-scripts run from the command line.
+Scripts:
+
+* dline-sample-observations
+* dline-create-emission-params
+* dline-create-transition-params
+* dline-compute-likelihoods
+* dline-call-polymorphisms
+* dline-user-friendly
+
+You can get usage information about a script
+using the --help flag.
+So for example::
+
+    dline-compute-likelihoods --help
 
 
 .. _Python-2.x: http://www.python.org
