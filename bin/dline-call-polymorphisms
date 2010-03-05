@@ -34,7 +34,7 @@ def main(args):
         model.from_lines(fin)
     # process the likelihoods
     with open(args.fobservations) as fin_obs:
-        with open(args.fposterior) as fin_post:
+        with open(args.fposterior, 'rb') as fin_post:
             with open(args.fcalls, 'wb') as fout_calls:
                 process(model, fin_obs, fin_post, fout_calls)
 

@@ -1,1 +1,56 @@
 #!/usr/bin/env python
+
+"""Compute a binary file of posterior polymorphism probabilities.
+"""
+
+import contextlib
+import itertools
+
+import argparse
+
+from drosophiline import ModelA
+
+
+def process(fin_obs, fin_lik, fin_post, fin_calls, fout_friendly):
+    """
+    @param fin_obs: observations as a text file for reading
+    @param fin_lik: likelihoods per state as a binary file for reading
+    @param fin_post: posterior distributions as a binary file for reading
+    @param fin_calls: polymorphism calls as a binary file for reading
+    @param fout_friendly: tab separated text file for writing
+    """
+    for obs, lik, post, polyprob in itertools.izip(
+            ModelA.gen_observations(fin_obs),
+            ModelA.gen_likelihoods(fin_lik),
+            ModelA.gen_posterior(fin_post),
+            ModelA.gen_calls(fin_calls)):
+        typed_row = list(obs) + list(lik) + list(post) + [polyprob]
+        row = [str(x) for x in typed_row]
+        print >> fout_friendly, '\t'.join(row)
+
+def main(args):
+    """Run the script.
+    @param args: command line arguments
+    """
+    # process the likelihoods
+    with contextlib.nested(
+            open(args.fobservations),
+            open(args.flikelihoods, 'rb'),
+            open(args.fposterior, 'rb'),
+            open(args.fcalls, 'rb'),
+            open(args.ffriendly, 'w')) as files:
+        process(*files)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--fobservations', default='observations.txt',
+            help='each line is an observation')
+    parser.add_argument('--flikelihoods', default='likelihoods.bin',
+            help='a binary file of position specific conditional likelihoods')
+    parser.add_argument('--fposterior', default='posterior.bin',
+            help='a binary file of position specific posterior distributions')
+    parser.add_argument('--fcalls', default='calls.bin',
+            help='a binary file of polymorphism probabilities')
+    parser.add_argument('--ffriendly', default='friendly.txt',
+            help='a tab separated file of per position inferences')
+    main(parser.parse_args())

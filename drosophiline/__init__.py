@@ -1,1 +1,1 @@
-drosophiline_version = '0.1.0'
+drosophiline_version = '0.1.1'
