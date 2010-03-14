@@ -8,6 +8,27 @@ using namespace std;
  * Also, 'distn' is an abbreviation of 'distribution'.
  */
 
+/* TODO add min and max over a range of a collection */
+
+/* TODO add logsumexp (use log1p?)*/
+
+/* TODO add kahan sum */
+
+/* kahan sum pseudocode from wikipedia */
+/*
+function kahanSum(input)
+   var sum = input[1]
+    var c = 0.0          //A running compensation for lost low-order bits.
+     for i = 2 to input.length
+       y = input[i] - c    //So far, so good: c is zero.
+         t = sum + y         //Alas, sum is big, y small, so low-order digits of y are lost.
+           c = (t - sum) - y   //(t - sum) recovers the high-order part of y; subtracting y recovers -(low part of y)
+             sum = t             //Algebraically, c should always be zero. Beware eagerly optimising compilers!
+              next i               //Next time around, the lost low part will be added to y in a fresh attempt.
+              return sum
+*/
+
+
 
 template<typename T>
 class Model
@@ -37,6 +58,68 @@ int main(int argc, const char *argv[])
   Mixture<vector<int> > m;
   return 0;
 }
+
+/*
+        log_likelihoods = [state.get_log_likelihood(observation)
+                for state in self.states]
+        weighted_lls = [ll + log_p
+                for ll, log_p in zip(log_likelihoods, self.log_distribution)]
+        obs_ll = scipy.maxentropy.logsumexp(weighted_lls)
+        return [math.exp(ll - obs_ll) for ll in weighted_lls]
+*/
+
+/*
+    def __init__(self, states, distribution):
+        """
+        @param states: a sequence of hidden states
+        @param distribution: the distribution of the hidden states
+        """
+        # do some validation
+        if not len(states):
+            raise ValueError('no states were specified')
+        if len(states) != len(distribution):
+            msg = 'the number of states should match the distribution length'
+            raise ValueError(msg)
+        if not np.allclose(sum(distribution), 1):
+            raise ValueError('expected the distribution to sum to 1.0')
+        if min(distribution) < 0:
+            msg = 'expected the distribution to be a stochastic vector'
+            raise ValueError(msg)
+        # store the arguments, leaving out states with zero probability
+        self.states = [state for state, d in zip(states, distribution) if d]
+        self.distribution = [d for d in distribution if d]
+        # precompute part of the likelihood
+        self.log_distribution = [math.log(p) if p else float('-inf')
+                for p in self.distribution]
+
+    def get_posterior_distribution(self, observation):
+        log_likelihoods = [state.get_log_likelihood(observation)
+                for state in self.states]
+        weighted_lls = [ll + log_p
+                for ll, log_p in zip(log_likelihoods, self.log_distribution)]
+        obs_ll = scipy.maxentropy.logsumexp(weighted_lls)
+        return [math.exp(ll - obs_ll) for ll in weighted_lls]
+
+    def sample_observation(self):
+        """
+        @return: an observation sampled from the distribution
+        """
+        state = self.states[xgstats.random_weighted_int(self.distribution)]
+        return state.sample_observation()
+
+    def get_likelihood(self, observation):
+        return math.exp(self.get_log_likelihood(observation))
+
+    def get_log_likelihood(self, observation):
+        log_likelihoods = [state.get_log_likelihood(observation)
+                for state in self.states]
+        if all(ll==float('-inf') for ll in log_likelihoods):
+            return float('-inf')
+        weighted_log_likelihoods = [ll + log_p
+                for ll, log_p in zip(log_likelihoods, self.log_distribution)]
+        return scipy.maxentropy.logsumexp(weighted_log_likelihoods)
+*/
+
 
 
 /*

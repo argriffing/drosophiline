@@ -1,6 +1,5 @@
-#include <cmath>
+#include <math.h>
 
-using namespace std;
 
 
 // Observation interface.
@@ -42,6 +41,11 @@ class Flat: public Model
     Flat(int nstates, int expected_coverage);
     get_likelihood(const Obs *pobs);
     get_log_likelihood(const Obs *pobs);
+}
+
+struct flat_t
+{
+  
 }
 
 // Each state has a geometrically distributed count.
