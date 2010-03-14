@@ -1,29 +1,45 @@
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
+/*
+ * In this file, 'lik' is an abbreviation of 'likelihood'.
+ * Also, 'distn' is an abbreviation of 'distribution'.
+ */
 
-// Observation interface.
-class Obs
-{
-  virtual ~Obs() = 0;
-};
 
-// An observation which is a vector of integers.
-class ObsVector: public Obs
+template<typename T>
+class Model
 {
   public:
-    ObsVector();
+    virtual ~Model() {}
+    virtual double get_lik(const T& obs) = 0;
+    virtual double get_log_lik(const T& obs) = 0;
+};
+
+template<typename T>
+class Mixture: public Model<T>
+{
+  public:
+    Mixture() : Model<T>() {}
+    double get_lik(const T& obs) {return 1.0;}
+    double get_log_lik(const T& obs) {return 0.0;}
+    vector<double> get_posterior_distn(const T& obs) {return distn_;}
+  private:
+    vector<Model<T> *> models_;
+    vector<double> distn_;
+};
+
+
+int main(int argc, const char *argv[])
+{
+  Mixture<vector<int> > m;
+  return 0;
 }
 
-class Mixture: public Model
-{
-  public:
-    get_likelihood(const Obs *pobs);
-    get_log_likelihood(const Obs *pobs);
-    get_posterior_distribution(const Obs *pobs);
-};
 
+/*
 class UniformMixture: public Mixture
 {
   public:
@@ -83,7 +99,6 @@ Flat::get_log_likelihood(const Obs *pobs)
 
 
 
-/*
 """
 This module defines some distributions related to resequencing.
 
