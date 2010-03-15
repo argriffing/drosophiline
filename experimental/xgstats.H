@@ -80,14 +80,21 @@ template <typename T>
 class UniformMixture: public Model<T>
 {
   public:
-    UniformMixture() :
-      Model<T>(), nmodels_(0), log_nmodels_(log(nmodels_)) {}
-    UniformMixture(const vector<Model<T> *> &models) :
-      Model<T>(), nmodels_(models.size()), models_(models),
-      log_nmodels_(log(nmodels_)) {}
+    UniformMixture() : Model<T>() {}
+    UniformMixture(const vector<Model<T> *> &models) : Model<T>()
+    {
+      models_ = models;
+      update_info();
+    }
     double get_lik(const T&obs) const {return exp(get_log_lik(obs));}
     double get_log_lik(const T&obs) const;
     vector<double> get_posterior_distn(const T& obs);
+  protected:
+    void update_info()
+    {
+      nmodels_ = models_.size();
+      log_nmodels_ = log(nmodels_);
+    }
   private:
     int nmodels_;
     vector<Model<T> *> models_;
