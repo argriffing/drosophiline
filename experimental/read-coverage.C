@@ -24,9 +24,9 @@ struct delete_object
 template <typename T>
 double logsumexp(T begin, T end)
 {
-  T max_it = max_element(begin, end);
-  if (max_it == end)
+  if (begin == end)
     return numeric_limits<double>::signaling_NaN();
+  T max_it = max_element(begin, end);
   double max_value = *max_it;
   double accum = 0;
   T it;
@@ -141,13 +141,25 @@ void Mixture<T>::set_distn_and_models(const vector<double> &distn,
 template<typename T>
 vector<double> Mixture<T>::get_posterior_distn(const T& obs)
 {
+  if (!nmodels_)
+    return vector<double>();
   int i;
+  // get the log likelihoods
   vector<double> post;
   for (i=0; i<nmodels_; i++)
   {
-    double w_log_lik = models_[i]->get_log_lik(obs) + log_distn_[i];
-    post.push_back(w_log_lik);
+    post.push_back(models_[i]->get_log_lik(obs));
   }
+  // an unexplainable observation is a bad problem
+  vector<double>::iterator it = max_element(post.begin(), post.end());
+  if (*it == -numeric_limits<double>::infinity())
+    return vector<double>(nmodels_, numeric_limits<double>::signaling_NaN());
+  // get the weighted log likelihoods
+  for (i=0; i<nmodels_; i++)
+  {
+    post[i] += log_distn_[i];
+  }
+  // compute the posterior distribution
   double obs_log_lik = logsumexp(post.begin(), post.end());
   for (i=0; i<nmodels_; i++)
   {
@@ -165,6 +177,8 @@ double Mixture<T>::get_lik(const T& obs)
 template<typename T>
 double Mixture<T>::get_log_lik(const T& obs)
 {
+  if (!nmodels_)
+    return numeric_limits<double>::signaling_NaN();
   // get the log likelihoods
   int i;
   vector<double> post;
@@ -172,10 +186,8 @@ double Mixture<T>::get_log_lik(const T& obs)
   {
     post.push_back(models_[i]->get_log_lik(obs));
   }
-  // if the log likelihoods are junk then return junk
+  // deal with an unexplainable observation
   vector<double>::iterator it = max_element(post.begin(), post.end());
-  if (it == post.end())
-    return numeric_limits<double>::signaling_NaN();
   if (*it == -numeric_limits<double>::infinity())
     return -numeric_limits<double>::infinity();
   // get the weighted log likelihoods
