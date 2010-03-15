@@ -24,6 +24,24 @@ struct delete_object
 template <typename T>
 double logsumexp(T begin, T end);
 
+/*
+ * The following few functions are directly ported from python.
+ * They should be parameterized the same way as their scipy counterparts,
+ * but they have additional checking for special cases,
+ * and they can somewhat deal with hugely negative log likelihoods.
+ * Nevertheless, they should probably all be rewritten.
+ */
+
+double binomial_log_pmf(int observed_n, int max_n, double p_success);
+
+double geometric_log_pmf(int observed_n, double pr);
+
+double poisson_log_pmf(int observed_n, int expected_n);
+
+template <typename T_distn, typename T_counts>
+double multinomial_log_pmf(T_distn distn_begin, T_distn distn_end,
+    T_counts counts_begin, T_counts counts_end);
+
 // statistical distribution templated base class
 template <typename T>
 class Model

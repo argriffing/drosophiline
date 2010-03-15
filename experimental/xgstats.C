@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <numeric>
 
 #include "xgstats.H"
 
@@ -28,6 +29,90 @@ double logsumexp(T begin, T end)
   }
   return log1p(accum) + max_value;
 }
+
+
+double binomial_log_pmf(int observed_n, int max_n, double p_success)
+{
+  // TODO special cases
+  double accum = 0;
+  accum += lgamma(max_n + 1);
+  accum -= lgamma(observed_n + 1);
+  accum -= lgamma((max_n - observed_n) + 1);
+  accum += observed_n * log(p_success);
+  accum += (max_n - observed_n) * log1p(-p_success);
+  return accum;
+}
+
+/*
+ * @param observed_n: the number of completed events
+ * @param pr: the probability of quitting
+ */
+double geometric_log_pmf(int observed_n, double pr)
+{
+  if (pr == 0)
+    return -numeric_limits<double>::infinity();
+  if (pr == 1.0)
+  {
+      if (observed_n)
+        return -numeric_limits<double>::infinity();
+      else
+        return log(pr);
+  }
+  return observed_n * log1p(-pr) + log(pr);
+}
+
+double poisson_log_pmf(int observed_n, int expected_n)
+{
+  if (expected_n == 0 && observed_n == 0)
+    return 0;
+  if (expected_n == 0 && observed_n != 0)
+    return -numeric_limits<double>::infinity();
+  double accum = 0;
+  accum += observed_n * log(expected_n);
+  accum -= expected_n;
+  accum -= lgamma(observed_n + 1);
+  return accum;
+}
+
+/*
+ * This should be in scipy.stats but it isn't.
+ * @param distribution: the distribution over classes
+ * @param counts: the observed counts over classes
+ */
+template <typename T_distn, typename T_counts>
+double multinomial_log_pmf(T_distn distn_begin, T_distn distn_end,
+    T_counts counts_begin, T_counts counts_end)
+{
+  // handle special cases
+  T_distn d_it = distn_begin;
+  T_counts c_it = counts_begin;
+  for (; d_it != distn_end; ++d_it, ++c_it)
+    if (*d_it == 0 && *c_it != 0)
+      return -numeric_limits<double>::infinity();
+  // handle less unusual cases
+  int n = accumulate(counts_begin, counts_end, 0);
+  // initialize the log probability mass
+  int accum = 0;
+  // add the contribution of n to the multinomial coefficient
+  if (n > 1)
+      accum += lgamma(n + 1);
+  // add the contribution of the counts to the multinomial coefficient
+  for (c_it = counts_begin; c_it != counts_end; ++c_it)
+  {
+    if (*c_it > 1)
+      accum -= lgamma(*c_it + 1);
+  }
+  // add the contribution of probabilities
+  d_it = distn_begin;
+  c_it = counts_begin;
+  for (; d_it != distn_end; ++d_it, ++c_it)
+  {
+    if (*c_it > 0)
+      accum += *c_it * log(*d_it);
+  }
+  return accum;
+}
+
 
 template<typename T>
 double UniformMixture<T>::get_log_lik(const T& obs) const

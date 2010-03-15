@@ -1,8 +1,9 @@
-
+import logging
 import random
 import unittest
 from math import log
 
+import argparse
 import scipy.stats
 from scipy.special import gammaln
 
@@ -112,6 +113,8 @@ class TestXgcode(unittest.TestCase):
         likelihood = scipy.stats.poisson.pmf(observed_n, expected_n)
         expected = log(likelihood)
         observed = poisson_log_pmf(observed_n, expected_n)
+        logging.debug('poisson scipy: %s', expected)
+        logging.debug('poisson adhoc: %s', observed)
         self.assertAlmostEqual(expected, observed)
 
     def test_geometric_log_pmf(self):
@@ -119,8 +122,15 @@ class TestXgcode(unittest.TestCase):
         pr = 0.1
         scipy_result = log(scipy.stats.geom.pmf(obs, pr, loc=-1))
         util_result = geometric_log_pmf(obs, pr)
+        logging.debug('geometric scipy: %s', scipy_result)
+        logging.debug('geometric adhoc: %s', util_result)
         self.assertAlmostEqual(scipy_result, util_result)
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-v', dest='verbose', action='store_true')
+    args = parser.parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
     unittest.main()
