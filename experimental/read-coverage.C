@@ -24,8 +24,10 @@ struct delete_object
 template <typename T>
 double logsumexp(T begin, T end)
 {
+  // logarithm of empty sum is -inf
   if (begin == end)
-    return numeric_limits<double>::signaling_NaN();
+    return -numeric_limits<double>::infinity();
+  // if sum is not empty then do the logsumexp trick
   T max_it = max_element(begin, end);
   double max_value = *max_it;
   double accum = 0;
