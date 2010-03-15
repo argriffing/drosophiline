@@ -1,5 +1,8 @@
 #include <cmath>
 #include <vector>
+#include <algorithm>
+#include <iostream>
+#include <limits>
 
 using namespace std;
 
@@ -8,32 +11,26 @@ using namespace std;
  * Also, 'distn' is an abbreviation of 'distribution'.
  */
 
-double logsumexp(double *begin, double *end)
+template <typename T>
+double logsumexp(T begin, T end)
 {
-  max_value = *begin;
-  max_p = p;
-  double *p;
-  for (p=0; p!=end; p++)
-  {
-    if (*p > max_value)
-    {
-      max_value = *p;
-      max_p = p;
-    }
-  }
+  T max_it = max_element(begin, end);
+  if (max_it == end)
+    return numeric_limits<double>::signaling_NaN();
+  double max_value = *max_it;
   double accum = 0;
-  for (p=begin; p!=end; p++)
+  T it;
+  for (it=begin; it!=end; it++)
   {
-    if (p != max_p)
+    if (it != max_it)
     {
-      accum += exp(*p - max_value);
+      accum += exp(*it - max_value);
     }
   }
   return log1p(accum) + max_value;
 }
 
-
-template<typename T>
+template <typename T>
 class Model
 {
   public:
@@ -42,12 +39,12 @@ class Model
     virtual double get_log_lik(const T& obs) = 0;
 };
 
-template<typename T>
+template <typename T>
 class Mixture: public Model<T>
 {
   public:
     // override base class member functions
-    Mixture() : Model<T>() {}
+    Mixture() : Model<T>(), nmodels_(0) {}
     double get_lik(const T& obs) {return 1.0;}
     double get_log_lik(const T& obs) {return 0.0;}
     // add some new functions
@@ -63,31 +60,56 @@ class Mixture: public Model<T>
 };
 
 template<typename T>
-void Mixture::set_distn_and_models(const vector<double>& distn,
-    const vector<Model<T> *> &models);
+void Mixture<T>::set_distn_and_models(const vector<double>& distn,
+    const vector<Model<T> *> &models)
 {
   distn_ = distn;
   models_ = models;
   /* precompute some stuff */
   nmodels_ = models.size();
-  log_distn_ = distn;
-  int i;
-  for (i=0; i<nmodels_; i++)
-    log_distn_[i] = log(distn[i]);
+  log_distn_.clear();
+  transform(distn_.begin(), distn_.end(),
+      back_inserter(log_distn_), (double (*)(double)) log);
 }
 
+/*
+ * Compute the posterior distribution.
+ * This is proportional to the vector of elementwise products
+ * of priors with likelihoods.
+ * When likelihoods are tiny, this normalization factor
+ * cannot be accurately represented with double precision.
+ * Therefore we do tricksy things in log space.
+ */
 template<typename T>
-vector<double> Mixture::get_posterior_distn(const T& obs)
+vector<double> Mixture<T>::get_posterior_distn(const T& obs)
 {
   int i;
-  n = get_nmodels();
-  /* start building the posterior distribution */
   vector<double> post(distn_);
+  for (i=0; i<nmodels_; i++)
+  {
+    double w_log_lik = models_[i]->get_log_lik(obs) + log_distn_[i];
+    post.push_back(w_log_lik);
+  }
+  double obs_log_lik = logsumexp(post.begin(), post.end());
+  for (i=0; i<nmodels_; i++)
+  {
+    post[i] = exp(post[i] - obs_log_lik);
+  }
+  return post;
 }
 
 int main(int argc, const char *argv[])
 {
+  /* define a mixture model and an observation */
   Mixture<vector<int> > m;
+  int arr[3] = {3, 5, 8};
+  vector<int> v(arr, arr+3);
+  /* compute a posterior distribution */
+  vector<double> post = m.get_posterior_distn(v);
+  cout << "posterior distribution:" << endl;
+  vector<double>::iterator it;
+  for (it=post.begin(); it != post.end(); ++it) cout << *it;
+  cout << endl;
   return 0;
 }
 
