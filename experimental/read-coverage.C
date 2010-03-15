@@ -11,6 +11,16 @@ using namespace std;
  * Also, 'distn' is an abbreviation of 'distribution'.
  */
 
+/*
+ * This is a functor.
+ */
+struct delete_object
+{
+  template <typename T>
+  void operator()(T *ptr){ delete ptr;}
+};
+
+
 template <typename T>
 double logsumexp(T begin, T end)
 {
@@ -45,8 +55,9 @@ class Mixture: public Model<T>
   public:
     // override base class member functions
     Mixture() : Model<T>(), nmodels_(0) {}
-    double get_lik(const T& obs) {return 1.0;}
-    double get_log_lik(const T& obs) {return 0.0;}
+    Mixture(const vector<double>&, const vector<Model<T> *>&);
+    double get_lik(const T& obs);
+    double get_log_lik(const T& obs);
     // add some new functions
     void set_distn_and_models(const vector<double>&,
         const vector<Model<T> *>&);
@@ -59,8 +70,55 @@ class Mixture: public Model<T>
     vector<double> log_distn_;
 };
 
+class FiniteDistn: public Model<int>
+{
+  public:
+    // override base class member functions
+    FiniteDistn() : Model<int>() {}
+    FiniteDistn(const vector<double> &distn) : Model<int>() {set_distn(distn);}
+    double get_lik(const int &obs) {return distn_[obs];}
+    double get_log_lik(const int& obs) {return log_distn_[obs];}
+    // add some new functions
+    void set_distn(const vector<double>&);
+  private:
+    vector<double> distn_;
+    vector<double> log_distn_;
+};
+
+class FairD6: public FiniteDistn
+{
+  public:
+    FairD6() : FiniteDistn() {set_distn(vector<double>(6, 1.0/6.0));}
+};
+
+class LoadedD6: public FiniteDistn
+{
+  public:
+    LoadedD6() : FiniteDistn()
+    {
+      vector<double> v(6, 0.1);
+      v[5] = .5;
+      set_distn(v);
+    }
+};
+
+void FiniteDistn::set_distn(const vector<double> &distn)
+{
+  distn_ = distn;
+  log_distn_.clear();
+  transform(distn_.begin(), distn_.end(),
+      back_inserter(log_distn_), (double (*)(double)) log);
+}
+
 template<typename T>
-void Mixture<T>::set_distn_and_models(const vector<double>& distn,
+Mixture<T>::Mixture(const vector<double> &distn,
+    const vector<Model<T> *> &models) : Model<T>()
+{
+  set_distn_and_models(distn, models);
+}
+
+template<typename T>
+void Mixture<T>::set_distn_and_models(const vector<double> &distn,
     const vector<Model<T> *> &models)
 {
   distn_ = distn;
@@ -84,7 +142,7 @@ template<typename T>
 vector<double> Mixture<T>::get_posterior_distn(const T& obs)
 {
   int i;
-  vector<double> post(distn_);
+  vector<double> post;
   for (i=0; i<nmodels_; i++)
   {
     double w_log_lik = models_[i]->get_log_lik(obs) + log_distn_[i];
@@ -98,7 +156,70 @@ vector<double> Mixture<T>::get_posterior_distn(const T& obs)
   return post;
 }
 
-int main(int argc, const char *argv[])
+template<typename T>
+double Mixture<T>::get_lik(const T& obs)
+{
+  return exp(get_log_lik(obs));
+}
+
+template<typename T>
+double Mixture<T>::get_log_lik(const T& obs)
+{
+  // get the log likelihoods
+  int i;
+  vector<double> post;
+  for (i=0; i<nmodels_; i++)
+  {
+    post.push_back(models_[i]->get_log_lik(obs));
+  }
+  // if the log likelihoods are junk then return junk
+  vector<double>::iterator it = max_element(post.begin(), post.end());
+  if (it == post.end())
+    return numeric_limits<double>::signaling_NaN();
+  if (*it == -numeric_limits<double>::infinity())
+    return -numeric_limits<double>::infinity();
+  // get the weighted log likelihoods
+  for (i=0; i<nmodels_; i++)
+  {
+    post[i] += log_distn_[i];
+  }
+  return logsumexp(post.begin(), post.end());
+}
+
+
+void test_mixture_b()
+{
+  // define the mixture parameters
+  vector<double> distn;
+  distn.push_back(.5);
+  distn.push_back(.5);
+  // define the mixture components
+  vector<Model<int> *> models;
+  models.push_back(new FairD6());
+  models.push_back(new LoadedD6());
+  // create the model
+  Mixture<int> m(distn, models);
+  // show some likelihoods
+  int i;
+  cout << "mixture likelhoods:" << endl;
+  for (i=0; i<6; i++)
+  {
+    cout << i << endl;
+    cout << m.get_lik(i) << endl;
+    cout << m.get_log_lik(i) << endl;
+    cout << endl;
+  }
+  vector<double> post = m.get_posterior_distn(5);
+  cout << "posterior distribution:" << endl;
+  vector<double>::iterator it;
+  for (it=post.begin(); it != post.end(); ++it)
+    cout << *it << endl;
+  cout << endl;
+  // cleanup
+  for_each(models.begin(), models.end(), delete_object());
+}
+
+void test_mixture()
 {
   /* define a mixture model and an observation */
   Mixture<vector<int> > m;
@@ -108,19 +229,34 @@ int main(int argc, const char *argv[])
   vector<double> post = m.get_posterior_distn(v);
   cout << "posterior distribution:" << endl;
   vector<double>::iterator it;
-  for (it=post.begin(); it != post.end(); ++it) cout << *it;
+  for (it=post.begin(); it != post.end(); ++it)
+    cout << *it << endl;
   cout << endl;
-  return 0;
 }
 
-/*
-        log_likelihoods = [state.get_log_likelihood(observation)
-                for state in self.states]
-        weighted_lls = [ll + log_p
-                for ll, log_p in zip(log_likelihoods, self.log_distribution)]
-        obs_ll = scipy.maxentropy.logsumexp(weighted_lls)
-        return [math.exp(ll - obs_ll) for ll in weighted_lls]
-*/
+void test_finite_distn()
+{
+  cout << "finite distribution:" << endl;
+  vector<double> v(6, 1.0/6.0);
+  FiniteDistn d(v);
+  int i;
+  for (i=0; i<6; i++)
+  {
+    cout << i << endl;
+    cout << d.get_lik(i) << endl;
+    cout << d.get_log_lik(i) << endl;
+    cout << endl;
+  }
+}
+
+int main(int argc, const char *argv[])
+{
+  cout << log(0.0) << endl;
+  test_mixture();
+  test_finite_distn();
+  test_mixture_b();
+  return 0;
+}
 
 /*
     def __init__(self, states, distribution):
