@@ -79,45 +79,64 @@ template <typename T>
 class UniformMixture: public Model<T>
 {
   public:
-    UniformMixture() : Model<T>(), nmodels_(0) {}
-    UniformMixture(const vector<Model<T> *>&);
-    double get_lik(const T&obs) const;
+    UniformMixture() :
+      Model<T>(), nmodels_(0), log_nmodels_(log(nmodels_)) {}
+    UniformMixture(const vector<Model<T> *> &models) :
+      Model<T>(), nmodels_(models.size()), models_(models),
+      log_nmodels_(log(nmodels_)) {}
+    double get_lik(const T&obs) const {return exp(get_log_lik(obs));}
     double get_log_lik(const T&obs) const;
     vector<double> get_posterior_distn(const T& obs);
   private:
     int nmodels_;
     vector<Model<T> *> models_;
-    double p_;
-    double log_p_;
+    double log_nmodels_;
 };
 
-/*
-class UniformMixture:
-    """
-    This allows sampling and likelihood calculations for a mixture model.
-    Each component of the mixture is equally likely.
-    This class can act as a HMM hidden state.
-    """
+template<typename T>
+double UniformMixture<T>::get_log_lik(const T& obs) const
+{
+  if (!nmodels_)
+    return numeric_limits<double>::signaling_NaN();
+  // get the log likelihoods
+  int i;
+  vector<double> log_liks;
+  for (i=0; i<nmodels_; i++)
+  {
+    log_liks.push_back(models_[i]->get_log_lik(obs));
+  }
+  // deal with an unexplainable observation
+  vector<double>::iterator it = max_element(log_liks.begin(), log_liks.end());
+  if (*it == -numeric_limits<double>::infinity())
+    return -numeric_limits<double>::infinity();
+  // return the log likelihood
+  return logsumexp(log_liks.begin(), log_liks.end()) - log_nmodels_;
+}
 
-    def __init__(self, states):
-        """
-        @param states: a sequence of hidden states
-        """
-        self.states = states
-
-    def sample_observation(self):
-        return random.choice(self.states).sample_observation()
-
-    def get_likelihood(self, observation):
-        return math.exp(self.get_log_likelihood(observation))
-
-    def get_log_likelihood(self, observation):
-        log_likelihoods = [state.get_log_likelihood(observation) for state in self.states]
-        if all(ll==float('-inf') for ll in log_likelihoods):
-            return float('-inf')
-        log_likelihood = scipy.maxentropy.logsumexp(log_likelihoods) - math.log(len(self.states))
-        return log_likelihood
-*/
+template<typename T>
+vector<double> UniformMixture<T>::get_posterior_distn(const T& obs)
+{
+  if (!nmodels_)
+    return vector<double>();
+  int i;
+  // get the log likelihoods
+  vector<double> post;
+  for (i=0; i<nmodels_; i++)
+  {
+    post.push_back(models_[i]->get_log_lik(obs));
+  }
+  // an unexplainable observation is a bad problem
+  vector<double>::iterator it = max_element(post.begin(), post.end());
+  if (*it == -numeric_limits<double>::infinity())
+    return vector<double>(nmodels_, numeric_limits<double>::signaling_NaN());
+  // compute the posterior distribution
+  double log_lik_sum = logsumexp(post.begin(), post.end());
+  for (i=0; i<nmodels_; i++)
+  {
+    post[i] = exp(post[i] - log_lik_sum);
+  }
+  return post;
+}
 
 class FiniteDistn: public Model<int>
 {
@@ -248,21 +267,17 @@ double Mixture<T>::get_log_lik(const T& obs) const
 }
 
 
-void test_mixture_b()
+void test_uniform_mixture()
 {
-  // define the mixture parameters
-  vector<double> distn;
-  distn.push_back(.5);
-  distn.push_back(.5);
   // define the mixture components
   vector<Model<int> *> models;
   models.push_back(new FairD6());
   models.push_back(new LoadedD6());
   // create the model
-  Mixture<int> m(distn, models);
+  UniformMixture<int> m(models);
   // show some likelihoods
   int i;
-  cout << "mixture likelhoods:" << endl;
+  cout << "uniform mixture likelihoods:" << endl;
   for (i=0; i<6; i++)
   {
     cout << i << endl;
@@ -271,7 +286,39 @@ void test_mixture_b()
     cout << endl;
   }
   vector<double> post = m.get_posterior_distn(5);
-  cout << "posterior distribution:" << endl;
+  cout << "uniform mixture posterior distribution:" << endl;
+  vector<double>::iterator it;
+  for (it=post.begin(); it != post.end(); ++it)
+    cout << *it << endl;
+  cout << endl;
+  // cleanup
+  for_each(models.begin(), models.end(), delete_object());
+}
+
+void test_mixture_b()
+{
+  // define the mixture parameters
+  vector<double> distn;
+  distn.push_back(.4);
+  distn.push_back(.6);
+  // define the mixture components
+  vector<Model<int> *> models;
+  models.push_back(new FairD6());
+  models.push_back(new LoadedD6());
+  // create the model
+  Mixture<int> m(distn, models);
+  // show some likelihoods
+  int i;
+  cout << "non-uniform mixture likelhoods:" << endl;
+  for (i=0; i<6; i++)
+  {
+    cout << i << endl;
+    cout << m.get_lik(i) << endl;
+    cout << m.get_log_lik(i) << endl;
+    cout << endl;
+  }
+  vector<double> post = m.get_posterior_distn(5);
+  cout << "non-uniform mixture posterior distribution:" << endl;
   vector<double>::iterator it;
   for (it=post.begin(); it != post.end(); ++it)
     cout << *it << endl;
@@ -316,6 +363,7 @@ int main(int argc, const char *argv[])
   test_mixture();
   test_finite_distn();
   test_mixture_b();
+  test_uniform_mixture();
   return 0;
 }
 
