@@ -8,26 +8,29 @@ using namespace std;
  * Also, 'distn' is an abbreviation of 'distribution'.
  */
 
-/* TODO add min and max over a range of a collection */
-
-/* TODO add logsumexp (use log1p?)*/
-
-/* TODO add kahan sum */
-
-/* kahan sum pseudocode from wikipedia */
-/*
-function kahanSum(input)
-   var sum = input[1]
-    var c = 0.0          //A running compensation for lost low-order bits.
-     for i = 2 to input.length
-       y = input[i] - c    //So far, so good: c is zero.
-         t = sum + y         //Alas, sum is big, y small, so low-order digits of y are lost.
-           c = (t - sum) - y   //(t - sum) recovers the high-order part of y; subtracting y recovers -(low part of y)
-             sum = t             //Algebraically, c should always be zero. Beware eagerly optimising compilers!
-              next i               //Next time around, the lost low part will be added to y in a fresh attempt.
-              return sum
-*/
-
+double logsumexp(double *begin, double *end)
+{
+  max_value = *begin;
+  max_p = p;
+  double *p;
+  for (p=0; p!=end; p++)
+  {
+    if (*p > max_value)
+    {
+      max_value = *p;
+      max_p = p;
+    }
+  }
+  double accum = 0;
+  for (p=begin; p!=end; p++)
+  {
+    if (p != max_p)
+    {
+      accum += exp(*p - max_value);
+    }
+  }
+  return log1p(accum) + max_value;
+}
 
 
 template<typename T>
@@ -43,15 +46,44 @@ template<typename T>
 class Mixture: public Model<T>
 {
   public:
+    // override base class member functions
     Mixture() : Model<T>() {}
     double get_lik(const T& obs) {return 1.0;}
     double get_log_lik(const T& obs) {return 0.0;}
-    vector<double> get_posterior_distn(const T& obs) {return distn_;}
+    // add some new functions
+    void set_distn_and_models(const vector<double>&,
+        const vector<Model<T> *>&);
+    vector<double> get_posterior_distn(const T& obs);
+    int get_nmodels() const {return nmodels_;}
   private:
+    int nmodels_;
     vector<Model<T> *> models_;
     vector<double> distn_;
+    vector<double> log_distn_;
 };
 
+template<typename T>
+void Mixture::set_distn_and_models(const vector<double>& distn,
+    const vector<Model<T> *> &models);
+{
+  distn_ = distn;
+  models_ = models;
+  /* precompute some stuff */
+  nmodels_ = models.size();
+  log_distn_ = distn;
+  int i;
+  for (i=0; i<nmodels_; i++)
+    log_distn_[i] = log(distn[i]);
+}
+
+template<typename T>
+vector<double> Mixture::get_posterior_distn(const T& obs)
+{
+  int i;
+  n = get_nmodels();
+  /* start building the posterior distribution */
+  vector<double> post(distn_);
+}
 
 int main(int argc, const char *argv[])
 {
