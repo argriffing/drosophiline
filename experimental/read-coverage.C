@@ -47,8 +47,8 @@ class Model
 {
   public:
     virtual ~Model() {}
-    virtual double get_lik(const T& obs) = 0;
-    virtual double get_log_lik(const T& obs) = 0;
+    virtual double get_lik(const T& obs) const = 0;
+    virtual double get_log_lik(const T& obs) const = 0;
 };
 
 template <typename T>
@@ -58,13 +58,12 @@ class Mixture: public Model<T>
     // override base class member functions
     Mixture() : Model<T>(), nmodels_(0) {}
     Mixture(const vector<double>&, const vector<Model<T> *>&);
-    double get_lik(const T& obs);
-    double get_log_lik(const T& obs);
+    double get_lik(const T& obs) const;
+    double get_log_lik(const T& obs) const;
     // add some new functions
     void set_distn_and_models(const vector<double>&,
         const vector<Model<T> *>&);
     vector<double> get_posterior_distn(const T& obs);
-    int get_nmodels() const {return nmodels_;}
   private:
     int nmodels_;
     vector<Model<T> *> models_;
@@ -72,14 +71,62 @@ class Mixture: public Model<T>
     vector<double> log_distn_;
 };
 
+/*
+ * The name suggests that this is a subclass of Mixture.
+ * But this is not the case.
+ */
+template <typename T>
+class UniformMixture: public Model<T>
+{
+  public:
+    UniformMixture() : Model<T>(), nmodels_(0) {}
+    UniformMixture(const vector<Model<T> *>&);
+    double get_lik(const T&obs) const;
+    double get_log_lik(const T&obs) const;
+    vector<double> get_posterior_distn(const T& obs);
+  private:
+    int nmodels_;
+    vector<Model<T> *> models_;
+    double p_;
+    double log_p_;
+};
+
+/*
+class UniformMixture:
+    """
+    This allows sampling and likelihood calculations for a mixture model.
+    Each component of the mixture is equally likely.
+    This class can act as a HMM hidden state.
+    """
+
+    def __init__(self, states):
+        """
+        @param states: a sequence of hidden states
+        """
+        self.states = states
+
+    def sample_observation(self):
+        return random.choice(self.states).sample_observation()
+
+    def get_likelihood(self, observation):
+        return math.exp(self.get_log_likelihood(observation))
+
+    def get_log_likelihood(self, observation):
+        log_likelihoods = [state.get_log_likelihood(observation) for state in self.states]
+        if all(ll==float('-inf') for ll in log_likelihoods):
+            return float('-inf')
+        log_likelihood = scipy.maxentropy.logsumexp(log_likelihoods) - math.log(len(self.states))
+        return log_likelihood
+*/
+
 class FiniteDistn: public Model<int>
 {
   public:
     // override base class member functions
     FiniteDistn() : Model<int>() {}
     FiniteDistn(const vector<double> &distn) : Model<int>() {set_distn(distn);}
-    double get_lik(const int &obs) {return distn_[obs];}
-    double get_log_lik(const int& obs) {return log_distn_[obs];}
+    double get_lik(const int &obs) const {return distn_[obs];}
+    double get_log_lik(const int& obs) const {return log_distn_[obs];}
     // add some new functions
     void set_distn(const vector<double>&);
   private:
@@ -171,13 +218,13 @@ vector<double> Mixture<T>::get_posterior_distn(const T& obs)
 }
 
 template<typename T>
-double Mixture<T>::get_lik(const T& obs)
+double Mixture<T>::get_lik(const T& obs) const
 {
   return exp(get_log_lik(obs));
 }
 
 template<typename T>
-double Mixture<T>::get_log_lik(const T& obs)
+double Mixture<T>::get_log_lik(const T& obs) const
 {
   if (!nmodels_)
     return numeric_limits<double>::signaling_NaN();
@@ -272,65 +319,9 @@ int main(int argc, const char *argv[])
   return 0;
 }
 
-/*
-    def __init__(self, states, distribution):
-        """
-        @param states: a sequence of hidden states
-        @param distribution: the distribution of the hidden states
-        """
-        # do some validation
-        if not len(states):
-            raise ValueError('no states were specified')
-        if len(states) != len(distribution):
-            msg = 'the number of states should match the distribution length'
-            raise ValueError(msg)
-        if not np.allclose(sum(distribution), 1):
-            raise ValueError('expected the distribution to sum to 1.0')
-        if min(distribution) < 0:
-            msg = 'expected the distribution to be a stochastic vector'
-            raise ValueError(msg)
-        # store the arguments, leaving out states with zero probability
-        self.states = [state for state, d in zip(states, distribution) if d]
-        self.distribution = [d for d in distribution if d]
-        # precompute part of the likelihood
-        self.log_distribution = [math.log(p) if p else float('-inf')
-                for p in self.distribution]
-
-    def get_posterior_distribution(self, observation):
-        log_likelihoods = [state.get_log_likelihood(observation)
-                for state in self.states]
-        weighted_lls = [ll + log_p
-                for ll, log_p in zip(log_likelihoods, self.log_distribution)]
-        obs_ll = scipy.maxentropy.logsumexp(weighted_lls)
-        return [math.exp(ll - obs_ll) for ll in weighted_lls]
-
-    def sample_observation(self):
-        """
-        @return: an observation sampled from the distribution
-        """
-        state = self.states[xgstats.random_weighted_int(self.distribution)]
-        return state.sample_observation()
-
-    def get_likelihood(self, observation):
-        return math.exp(self.get_log_likelihood(observation))
-
-    def get_log_likelihood(self, observation):
-        log_likelihoods = [state.get_log_likelihood(observation)
-                for state in self.states]
-        if all(ll==float('-inf') for ll in log_likelihoods):
-            return float('-inf')
-        weighted_log_likelihoods = [ll + log_p
-                for ll, log_p in zip(log_likelihoods, self.log_distribution)]
-        return scipy.maxentropy.logsumexp(weighted_log_likelihoods)
-*/
-
 
 
 /*
-class UniformMixture: public Mixture
-{
-  public:
-};
 
 class Flat: public Model
 {
