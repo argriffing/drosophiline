@@ -196,8 +196,9 @@ double SinglePatternState::get_log_lik(const vector<int> &obs) const
   int n = accumulate(obs.begin(), obs.end(), 0);
   double accum = 0;
   accum += pcoverage_model_->get_log_lik(n);
-  accum += multinomial_log_pmf(distn_.begin(), distn_.end(),
-      obs.begin(), obs.end());
+  accum += multinomial_log_pmf
+    < vector<double>::const_iterator, vector<int>::const_iterator >
+    (distn_.begin(), distn_.end(), obs.begin(), obs.end());
   return accum;
 }
 
@@ -233,7 +234,6 @@ class FlatState: public Model<vector<int> >
 {
   public:
     FlatState(int nstates, int expected_coverage);
-    ~FlatState();
     double get_log_lik(const vector<int>&) const;
     double get_lik(const vector<int> &obs) const
     {

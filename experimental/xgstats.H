@@ -56,7 +56,7 @@ template <typename T>
 class Mixture: public Model<T>
 {
   public:
-    Mixture() : Model<T>(), nmodels_(0) {}
+    Mixture() {}
     Mixture(const vector<double>&, const vector<Model<T> *>&);
     double get_lik(const T& obs) const {return exp(get_log_lik(obs));}
     double get_log_lik(const T& obs) const;
@@ -83,8 +83,8 @@ template <typename T>
 class UniformMixture: public Model<T>
 {
   public:
-    UniformMixture() : Model<T>() {}
-    UniformMixture(const vector<Model<T> *> &models) : Model<T>()
+    UniformMixture() {}
+    UniformMixture(const vector<Model<T> *> &models)
     {
       models_ = models;
       update_info();
@@ -107,8 +107,8 @@ class FiniteDistn: public Model<int>
 {
   public:
     // override base class member functions
-    FiniteDistn() : Model<int>() {}
-    FiniteDistn(const vector<double> &distn) : Model<int>() {set_distn(distn);}
+    FiniteDistn() {}
+    FiniteDistn(const vector<double> &distn) {set_distn(distn);}
     double get_lik(const int &obs) const {return distn_[obs];}
     double get_log_lik(const int& obs) const {return log_distn_[obs];}
     // add some new functions
@@ -121,13 +121,13 @@ class FiniteDistn: public Model<int>
 class FairD6: public FiniteDistn
 {
   public:
-    FairD6() : FiniteDistn() {set_distn(vector<double>(6, 1.0/6.0));}
+    FairD6() : FiniteDistn(vector<double>(6, 1.0/6.0)) {}
 };
 
 class LoadedD6: public FiniteDistn
 {
   public:
-    LoadedD6() : FiniteDistn()
+    LoadedD6()
     {
       vector<double> v(6, 0.1);
       v[5] = .5;
