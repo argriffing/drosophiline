@@ -56,19 +56,22 @@ template <typename T>
 class Mixture: public Model<T>
 {
   public:
-    // override base class member functions
     Mixture() : Model<T>(), nmodels_(0) {}
     Mixture(const vector<double>&, const vector<Model<T> *>&);
     double get_lik(const T& obs) const {return exp(get_log_lik(obs));}
     double get_log_lik(const T& obs) const;
-    // add some new functions
-    void set_distn_and_models(const vector<double>&,
-        const vector<Model<T> *>&);
     vector<double> get_posterior_distn(const T& obs);
-  private:
-    int nmodels_;
-    vector<Model<T> *> models_;
+  protected:
+    void update_info()
+    {
+      nmodels_ = models_.size();
+      log_distn_.clear();
+      transform(distn_.begin(), distn_.end(),
+          back_inserter(log_distn_), (double (*)(double)) log);
+    }
     vector<double> distn_;
+    vector<Model<T> *> models_;
+    int nmodels_;
     vector<double> log_distn_;
 };
 
@@ -95,9 +98,8 @@ class UniformMixture: public Model<T>
       nmodels_ = models_.size();
       log_nmodels_ = log(nmodels_);
     }
-  private:
-    int nmodels_;
     vector<Model<T> *> models_;
+    int nmodels_;
     double log_nmodels_;
 };
 

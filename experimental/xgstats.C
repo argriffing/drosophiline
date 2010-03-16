@@ -169,22 +169,10 @@ void FiniteDistn::set_distn(const vector<double> &distn)
 
 template<typename T>
 Mixture<T>::Mixture(const vector<double> &distn,
-    const vector<Model<T> *> &models) : Model<T>()
+    const vector<Model<T> *> &models) : Model<T>(),
+    distn_(distn), models_(models)
 {
-  set_distn_and_models(distn, models);
-}
-
-template<typename T>
-void Mixture<T>::set_distn_and_models(const vector<double> &distn,
-    const vector<Model<T> *> &models)
-{
-  distn_ = distn;
-  models_ = models;
-  /* precompute some stuff */
-  nmodels_ = models.size();
-  log_distn_.clear();
-  transform(distn_.begin(), distn_.end(),
-      back_inserter(log_distn_), (double (*)(double)) log);
+  update_info();
 }
 
 /*
