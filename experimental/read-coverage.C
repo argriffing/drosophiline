@@ -135,16 +135,12 @@ vector<double> get_zygosity_distn(double ref_length, double child_length)
   return distn;
 }
 
-
-
 class WrappedPoisson: public Model<int>
 {
   public:
-    WrappedPoisson() : Model<int>(), expectation_(0) {}
-    WrappedPoisson(int expectation) :
-      Model<int>(), expectation_(expectation) {}
-    double get_lik(const int &obs) {return exp(get_log_lik(obs));}
-    double get_log_lik(const int &obs)
+    WrappedPoisson(int expectation) : expectation_(expectation) {}
+    double get_lik(const int &obs) const {return exp(get_log_lik(obs));}
+    double get_log_lik(const int &obs) const
     {
       return poisson_log_pmf(obs, expectation_);
     }
@@ -155,9 +151,7 @@ class WrappedPoisson: public Model<int>
 class GoodMultiCoverage: public UniformMixture<int>
 {
   public:
-    GoodMultiCoverage() : UniformMixture<int>() {}
-    GoodMultiCoverage(int nomcoverage, int kmulticoverages) :
-      UniformMixture<int>()
+    GoodMultiCoverage(int nomcoverage, int kmulticoverages)
     {
       // create the models
       int i;
@@ -182,19 +176,20 @@ class GoodMultiCoverage: public UniformMixture<int>
 class SinglePatternState: public Model<vector<int> >
 {
   public:
-    SinglePatternState() : Model<vector<int> >(),
-      pcoverage_model_(NULL) {}
     SinglePatternState(const vector<double> &distn,
-      const Model<int> *pcoverage_model) : Model<vector<int> >(),
+      const Model<int> *pcoverage_model) : 
       distn_(distn), pcoverage_model_(pcoverage_model) {}
-    double get_lik(const vector<int> &obs) {return exp(get_log_lik(obs));}
-    double get_log_lik(const vector<int> &obs);
+    double get_lik(const vector<int> &obs) const
+    {
+      return exp(get_log_lik(obs));
+    }
+    double get_log_lik(const vector<int> &obs) const;
   private:
     vector<double> distn_;
     const Model<int> *pcoverage_model_;
 };
 
-double SinglePatternState::get_log_lik(const vector<int> &obs)
+double SinglePatternState::get_log_lik(const vector<int> &obs) const
 {
   if (distn_.empty())
     return numeric_limits<double>::signaling_NaN();
@@ -209,8 +204,6 @@ double SinglePatternState::get_log_lik(const vector<int> &obs)
 class ZygosityState: public UniformMixture<vector<int> >
 {
   public:
-    ZygosityState() : UniformMixture<vector<int> >(),
-      pcoverage_model_(NULL) {}
     ZygosityState(const vector<vector<double> >&, const Model<int>*);
     ~ZygosityState()
     {
@@ -221,7 +214,7 @@ class ZygosityState: public UniformMixture<vector<int> >
 };
 
 ZygosityState::ZygosityState(const vector<vector<double> > &distns,
-    const Model<int> *pcoverage_model) : UniformMixture<vector<int> >()
+    const Model<int> *pcoverage_model)
 {
   vector<vector<double> >::const_iterator it;
   for (it = distns.begin(); it != distns.end(); ++it)
@@ -230,10 +223,64 @@ ZygosityState::ZygosityState(const vector<vector<double> > &distns,
   }
 }
 
+/*
+ * This is supposed to be a somewhat flat distribution.
+ * Each of the counts is sampled independently
+ * according to a geometric distribution.
+ * The distribution of the sum of counts is negative binomial.
+ */
+class FlatState: public Model<vector<int> >
+{
+  public:
+    FlatState(int nstates, int expected_coverage);
+    ~FlatState();
+    double get_log_lik(const vector<int>&) const;
+    double get_lik(const vector<int> &obs) const
+    {
+      return exp(get_log_lik(obs));
+    }
+  private:
+    int nstates_;
+    double mu_;
+    double pr_;
+    double log_pr_;
+    double log_not_pr_;
+};
+
+FlatState::FlatState(int nstates, int expected_coverage)
+{
+  nstates_ = nstates;
+  mu_ = expected_coverage / (double) nstates_;
+  pr_ = 1 / (mu_ + 1);
+  log_pr_ = log(pr_);
+  log_not_pr_ = log(1.0 - pr_);
+}
+
+double FlatState::get_log_lik(const vector<int> &obs) const
+{
+  if (obs.empty())
+    return numeric_limits<double>::signaling_NaN();
+  if (pr_ == 0.0)
+    return -numeric_limits<double>::infinity();
+  int obs_sum = accumulate(obs.begin(), obs.end(), 0);
+  if (pr_ == 1.0)
+  {
+    if (obs_sum == 0)
+      return 0;
+    else
+      return -numeric_limits<double>::infinity();
+  }
+  // handle non-special cases
+  double accum = 0;
+  accum += obs_sum * log_not_pr_;
+  accum += nstates_ * log_pr_;
+  return accum;
+}
+
+
 class GoodState: public Mixture<vector<int> >
 {
   public:
-    GoodState() : Mixture<vector<int> >(), pcoverage_model_(NULL) {}
     GoodState(double dref, double dchild, double seqerr,
         int nomcoverage, int kmulticoverages);
     ~GoodState()
@@ -254,7 +301,7 @@ class GoodState: public Mixture<vector<int> >
  * @param kmulticoverages: allowed multiples of nominal coverage
  */
 GoodState::GoodState(double dref, double dchild, double r,
-    int nomcoverage, int kmulticoverages) : Mixture<vector<int> >()
+    int nomcoverage, int kmulticoverages)
 {
   // create the coverage model
   pcoverage_model_ = new GoodMultiCoverage(nomcoverage, kmulticoverages);
@@ -291,7 +338,7 @@ class HMMAncient: public GoodState
 /*
  * This region has states with ill-defined zygosity.
  */
-class HMMGarbage: public UniformMixture
+class HMMGarbage: public UniformMixture<vector<int> >
 {
   public:
     HMMGarbage(int low, int med, int high)
@@ -299,66 +346,13 @@ class HMMGarbage: public UniformMixture
       models_.push_back(new FlatState(4, low));
       models_.push_back(new FlatState(4, med));
       models_.push_back(new FlatState(4, high));
+      update_info();
     }
     ~HMMGarbage()
     {
       for_each(models_.begin(), models_.end(), delete_object());
     }
 };
-
-/*
- * This is supposed to be a somewhat flat distribution.
- * Each of the counts is sampled independently
- * according to a geometric distribution.
- * The distribution of the sum of counts is negative binomial.
- */
-class FlatState: public Model<vector<int> >
-{
-  public:
-    FlatState() : Model<vector<int> >() {}
-    FlatState(int nstates, int expected_coverage);
-    ~FlatState();
-    double get_log_lik(const vector<int>&);
-    double get_lik(const vector<int> &obs) {return exp(get_log_lik(obs));}
-  private:
-    int nstates_;
-    double mu_;
-    double pr_;
-    double log_pr_;
-    double log_not_pr_;
-};
-
-FlatState::FlatState(int nstates, int expected_coverage) :
-  Model<vector<int> >()
-{
-  nstates_ = nstates;
-  mu_ = expected_coverage / (double) nstates_;
-  pr_ = 1 / (mu_ + 1);
-  log_pr_ = log(pr_);
-  log_not_pr_ = log(1.0 - pr_);
-}
-
-FlatState::get_log_lik(const vector<int> &obs)
-{
-  if (obs.empty())
-    return numeric_limits<double>::signaling_NaN();
-  if (pr_ == 0.0)
-    return -numeric_limits<double>::infinity();
-  int obs_sum = accumulate(obs.begin(), obs.end(), 0);
-  if (pr_ == 1.0)
-  {
-    if (obs_sum == 0)
-      return 0;
-    else
-      return -numeric_limits<double>::infinity();
-  }
-  // handle non-special cases
-  double accum = 0;
-  accum += obs_sum * log_not_pr_;
-  accum += nstates_ * log_pr_;
-  return accum;
-}
-
 void demo_poisson_log_pmf()
 {
   int observed_n = 60;
@@ -395,24 +389,21 @@ void demo_zygosity_models()
   HMMGarbage garbage(low, med, high);
   HMMRecent recent(x, y, z, seqerr, nomcoverage, kmulticoverages);
   HMMAncient ancient(x, y, z, seqerr, nomcoverage, kmulticoverages);
-  Model *pgarbage = &garbage;
-  Model *precent = &recent;
-  Model *pancient = &ancient;
+  Model<vector<int> > *pgarbage = &garbage;
+  Model<vector<int> > *precent = &recent;
+  Model<vector<int> > *pancient = &ancient;
   // show the observation
   vector<int>::iterator it;
-  cout >> "observation: ";
+  cout << "observation: ";
   for (it = obs.begin(); it != obs.end(); ++it)
   {
-    cout >> *it >> " ";
+    cout << *it << " ";
   }
-  cout >> endl;
+  cout << endl;
   // compute a likelihood for each model
-  cout << "recent likelihood: ";
-  cout << precent->get_lik(obs) << endl;
-  cout << "ancient likelihood: ";
-  cout << pancient->get_lik(obs) << endl;
-  cout << "other likelihood: ";
-  cout << pgarbage->get_lik(obs) << endl;
+  cout << "recent likelihood: " << precent->get_lik(obs) << endl;
+  cout << "ancient likelihood: " << pancient->get_lik(obs) << endl;
+  cout << "other likelihood: " << pgarbage->get_lik(obs) << endl;
 }
 
 int main(int argc, const char *argv[])
