@@ -134,7 +134,7 @@ class HMMRecent : public GoodState
   public:
     HMMRecent (double x, double y, double z,
         double seqerr, int nomcoverage, int kmulticoverages) :
-        GoodState(x+y, y, seqerr, nomcoverage, kmulticoverages) {}
+        GoodState(x+y, z, seqerr, nomcoverage, kmulticoverages) {}
 };
 
 /*

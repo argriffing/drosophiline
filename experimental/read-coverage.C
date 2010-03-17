@@ -23,43 +23,71 @@ void demo_geometric_log_pmf()
   cout << geometric_log_pmf(obs, pr) << endl;
 }
 
-void demo_zygosity_models()
+vector<vector<int> > get_test_observations()
 {
-  // define an observation of RABC counts
-  cout << "beginning the zygosity demo..." << endl;
+  vector<vector<int> > observations;
   vector<int> obs;
+  /* a heterozygous observation */
+  obs.clear();
   obs.push_back(20);
-  obs.push_back(2);
+  obs.push_back(20);
   obs.push_back(1);
   obs.push_back(0);
+  observations.push_back(obs);
+  /* a homozyous non-reference observation */
+  obs.clear();
+  obs.push_back(2);
+  obs.push_back(40);
+  obs.push_back(1);
+  obs.push_back(0);
+  observations.push_back(obs);
+  /* a bizarre observation */
+  obs.clear();
+  obs.push_back(5);
+  obs.push_back(25);
+  obs.push_back(18);
+  obs.push_back(2);
+  observations.push_back(obs);
+  /* return the observations */
+  return observations;
+}
+
+void demo_zygosity_models()
+{
   // define some model parameters
   int low = 2;
   int med = 20;
   int high = 1000;
   double x = 0.1;
   double y = 0.01;
-  double z = .0001;
-  double seqerr = .1;
+  double z = .000001;
+  double seqerr = .01;
   int nomcoverage = 20;
   int kmulticoverages = 4;
   // create the models
-  cout << "creating the models..." << endl;
   HMMGarbage garbage(low, med, high);
   HMMRecent recent(x, y, z, seqerr, nomcoverage, kmulticoverages);
   HMMAncient ancient(x, y, z, seqerr, nomcoverage, kmulticoverages);
-  // show the observation
-  vector<int>::iterator it;
-  cout << "observation: ";
-  for (it = obs.begin(); it != obs.end(); ++it)
+  // evaluate several observations
+  vector<vector<int> > test_obs = get_test_observations();
+  vector<vector<int> >::iterator test_it;
+  for (test_it = test_obs.begin(); test_it != test_obs.end(); ++test_it)
   {
-    cout << *it << " ";
+    vector<int> obs = *test_it;
+    // show the observation
+    vector<int>::iterator it;
+    cout << "observation: ";
+    for (it = obs.begin(); it != obs.end(); ++it)
+    {
+      cout << *it << " ";
+    }
+    cout << endl;
+    // compute a likelihood for each model
+    cout << "recent likelihood: " << recent.get_lik(obs) << endl;
+    cout << "ancient likelihood: " << ancient.get_lik(obs) << endl;
+    cout << "other likelihood: " << garbage.get_lik(obs) << endl;
+    cout << endl;
   }
-  cout << endl;
-  // compute a likelihood for each model
-  cout << "computing the likelihoods..." << endl;
-  cout << "recent likelihood: " << recent.get_lik(obs) << endl;
-  cout << "ancient likelihood: " << ancient.get_lik(obs) << endl;
-  cout << "other likelihood: " << garbage.get_lik(obs) << endl;
 }
 
 int main(int argc, const char *argv[])
