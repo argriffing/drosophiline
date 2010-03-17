@@ -196,9 +196,8 @@ double SinglePatternState::get_log_lik(const vector<int> &obs) const
   int n = accumulate(obs.begin(), obs.end(), 0);
   double accum = 0;
   accum += pcoverage_model_->get_log_lik(n);
-  accum += multinomial_log_pmf
-    < vector<double>::const_iterator, vector<int>::const_iterator >
-    (distn_.begin(), distn_.end(), obs.begin(), obs.end());
+  accum += multinomial_log_pmf(distn_.begin(), distn_.end(),
+      obs.begin(), obs.end());
   return accum;
 }
 
@@ -222,6 +221,7 @@ ZygosityState::ZygosityState(const vector<vector<double> > &distns,
   {
     models_.push_back(new SinglePatternState(*it, pcoverage_model));
   }
+  update_info();
 }
 
 /*
@@ -312,6 +312,8 @@ GoodState::GoodState(double dref, double dchild, double r,
   models_.push_back(new ZygosityState(get_AB_distns(r), pcoverage_model_));
   // define the mixture parameters
   distn_ = get_zygosity_distn(dref, dchild);
+  // update cached info
+  update_info();
 }
 /*
  * A predominantly homozygous region.
@@ -370,6 +372,7 @@ void demo_geometric_log_pmf()
 void demo_zygosity_models()
 {
   // define an observation of RABC counts
+  cout << "beginning the zygosity demo..." << endl;
   vector<int> obs;
   obs.push_back(20);
   obs.push_back(2);
@@ -386,12 +389,10 @@ void demo_zygosity_models()
   int nomcoverage = 20;
   int kmulticoverages = 4;
   // create the models
+  cout << "creating the models..." << endl;
   HMMGarbage garbage(low, med, high);
   HMMRecent recent(x, y, z, seqerr, nomcoverage, kmulticoverages);
   HMMAncient ancient(x, y, z, seqerr, nomcoverage, kmulticoverages);
-  Model<vector<int> > *pgarbage = &garbage;
-  Model<vector<int> > *precent = &recent;
-  Model<vector<int> > *pancient = &ancient;
   // show the observation
   vector<int>::iterator it;
   cout << "observation: ";
@@ -401,18 +402,19 @@ void demo_zygosity_models()
   }
   cout << endl;
   // compute a likelihood for each model
-  cout << "recent likelihood: " << precent->get_lik(obs) << endl;
-  cout << "ancient likelihood: " << pancient->get_lik(obs) << endl;
-  cout << "other likelihood: " << pgarbage->get_lik(obs) << endl;
+  cout << "computing the likelihoods..." << endl;
+  cout << "recent likelihood: " << recent.get_lik(obs) << endl;
+  cout << "ancient likelihood: " << ancient.get_lik(obs) << endl;
+  cout << "other likelihood: " << garbage.get_lik(obs) << endl;
 }
 
 int main(int argc, const char *argv[])
 {
-  //cout << log(0.0) << endl;
-  //test_mixture();
-  //test_finite_distn();
-  //test_mixture_b();
-  //test_uniform_mixture();
+  cout << log(0.0) << endl;
+  test_mixture();
+  test_finite_distn();
+  test_mixture_b();
+  test_uniform_mixture();
   demo_poisson_log_pmf();
   demo_geometric_log_pmf();
   demo_zygosity_models();
