@@ -1,4 +1,5 @@
 #include <vector>
+#include <cmath>
 
 #include "phylo.H"
 
@@ -7,10 +8,10 @@ double jc69_distance_to_probability(double d)
   return (3.0 / 4.0) * (1.0 - exp(-(4.0 / 3.0) * d));
 }
 
-vector<double> get_zygosity_distn(double ref_length, double child_length)
+std::vector<double> get_zygosity_distn(double ref_len, double child_len)
 {
-  double p_ref_change = jc69_distance_to_probability(ref_length);
-  double p_child_change = jc69_distance_to_probability(child_length);
+  double p_ref_change = jc69_distance_to_probability(ref_len);
+  double p_child_change = jc69_distance_to_probability(child_len);
   // For now sum over all possibilities of non-reference nodes.
   // This could be done more efficiently using Felsenstein pruning,
   // but I am ignoring this for now.

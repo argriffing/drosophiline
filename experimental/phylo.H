@@ -15,6 +15,6 @@ double jc69_distance_to_probability(double d);
  * @param child_length: length of each child taxon branch
  * @return: the distribution (RR, RA, AA, AB)
  */
-vector<double> get_zygosity_distn(double ref_length, double child_length);
+std::vector<double> get_zygosity_distn(double ref_len, double child_len);
 
 #endif
