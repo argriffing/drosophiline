@@ -24,14 +24,14 @@ int main(int argc, const char *argv[])
   int nomcoverage = 10;
   int kmulticoverages = 8;
   // create the models
-  HMMGarbage garbage(low, med, high);
   HMMRecent recent(x, y, z, seqerr, nomcoverage, kmulticoverages);
   HMMAncient ancient(x, y, z, seqerr, nomcoverage, kmulticoverages);
+  HMMGarbage garbage(low, med, high);
   // let the models be accessed polymorphically in a vector
   vector<Model<vector<int> > *> models;
-  models.push_back(&garbage);
   models.push_back(&recent);
   models.push_back(&ancient);
+  models.push_back(&garbage);
   // convert observations to lilkelihoods
   vector<int32_t> rabc_buffer(RABC);
   vector<double> likelihoods(models.size());
@@ -50,7 +50,7 @@ int main(int argc, const char *argv[])
       return EXIT_FAILURE;
     }
     /* get the likelihoods */
-    int i;
+    size_t i;
     for (i=0; i<models.size(); i++)
     {
       likelihoods[i] = models[i]->get_lik(rabc_buffer);
